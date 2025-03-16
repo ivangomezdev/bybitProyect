@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { fetchTransactions } from "./utils/api";
 import DownloadButton from "./components/DownloadButton";
-import "./app.css"
+import "./App.css "
 function App() {
   const [transactions, setTransactions] = useState([]);
   const [monthlyFiles, setMonthlyFiles] = useState([]);
