@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { fetchTransactions } from "./utils/api";
 import DownloadButton from "./components/DownloadButton";
-import TransactionsList from "./components/TransactionsList";
-
+import "./app.css"
 function App() {
   const [transactions, setTransactions] = useState([]);
   const [monthlyFiles, setMonthlyFiles] = useState([]);
@@ -50,10 +49,12 @@ function App() {
   return (
     <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
       <h1>Transacciones Bybit</h1>
-      <p>Transacciones cargadas: {transactions.length}</p>
+      <div className="app__divCont">
       <DownloadButton transactions={transactions} />
+      <p>Transacciones cargadas: {transactions.length}</p>
       <div style={{ marginTop: "20px" }}>
         <h2>Descargas Mensuales</h2>
+        </div>
         {monthlyFiles.length > 0 ? (
           <ul style={{ listStyle: "none", padding: 0 }}>
             {monthlyFiles.map((file) => (
@@ -66,13 +67,15 @@ function App() {
                   {file}
                 </a>
               </li>
+              
             ))}
           </ul>
+          
         ) : (
           <p>No hay archivos mensuales disponibles aún.</p>
         )}
       </div>
-      <TransactionsList transactions={transactions} />
+      
     </div>
   );
 }
