@@ -57,8 +57,6 @@ export const generateExcel = async (transactions, chartData) => {
       const isDeposit = tx.type === "DEPOSIT";
       const income = isDeposit ? parseFloat(tx.amount) || 0 : 0;
       const expense = !isDeposit ? parseFloat(tx.amount) || 0 : 0;
-      const buyPrice = 19;
-      const sellPrice = !isDeposit ? 22 : 0;
       const usdt = Number(expense.toFixed(2));
 
       const row = worksheet.addRow({
@@ -67,8 +65,8 @@ export const generateExcel = async (transactions, chartData) => {
         uid: isDeposit ? "Cuenta Propia/RECIBO" : tx.toAddress || "N/A",
         income: Number(income.toFixed(2)),
         expense: Number(expense.toFixed(2)),
-        buyPrice: Number(buyPrice.toFixed(2)),
-        sellPrice: Number(sellPrice.toFixed(2)),
+        buyPrice: null, // Will be set dynamically below
+        sellPrice: null, // Will be set dynamically below
         incomeTotal: { formula: `K${rowCount}-E${rowCount}*F${rowCount}` },
         expenseTotal: "",
         usdt: usdt,
@@ -95,6 +93,21 @@ export const generateExcel = async (transactions, chartData) => {
       rowCount++;
     });
 
+    // Set F (P/C) and G (P/V) dynamically after rows are added
+    worksheet.getColumn("F").eachCell((cell, rowNumber) => {
+      if (rowNumber > 1) {
+        cell.value = { formula: "N9" }; // References COMPRA value
+      }
+    });
+
+    worksheet.getColumn("G").eachCell((cell, rowNumber) => {
+      if (rowNumber > 1) {
+        const isDeposit = grouped[day][rowNumber - 2].type === "DEPOSIT";
+        cell.value = isDeposit ? 0 : { formula: "N13" }; // 0 for deposits, N13 for withdrawals
+      }
+    });
+
+    // INVENTARIO
     worksheet.mergeCells("N1:O2");
     const inventoryCell = worksheet.getCell("N1");
     inventoryCell.value = "INVENTARIO";
@@ -119,6 +132,7 @@ export const generateExcel = async (transactions, chartData) => {
       right: { style: "thin" },
     };
 
+    // GANANCIA
     worksheet.mergeCells("N4:O5");
     const gananciaCell = worksheet.getCell("N4");
     gananciaCell.value = "GANANCIA";
@@ -142,6 +156,56 @@ export const generateExcel = async (transactions, chartData) => {
       bottom: { style: "thin" },
       right: { style: "thin" },
     };
+
+    // COMPRA (N8:O9)
+    worksheet.mergeCells("N8:O8");
+    const compraCell = worksheet.getCell("N8");
+    compraCell.value = "COMPRA";
+    compraCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0000FF" } };
+    compraCell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    compraCell.alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.getCell("N9").value = 19;
+    worksheet.getCell("N9").numFmt = "#,##0.00";
+    worksheet.getCell("N9").alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.getCell("N9").border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell("O9").value = "MXN";
+    worksheet.getCell("O9").alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.getCell("O9").border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+
+    // VENTA (N12:O13)
+    worksheet.mergeCells("N12:O12");
+    const ventaCell = worksheet.getCell("N12");
+    ventaCell.value = "VENTA";
+    ventaCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0000FF" } };
+    ventaCell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    ventaCell.alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.getCell("N13").value = 22;
+    worksheet.getCell("N13").numFmt = "#,##0.00";
+    worksheet.getCell("N13").alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.getCell("N13").border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    worksheet.getCell("O13").value = "MXN";
+    worksheet.getCell("O13").alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.getCell("O13").border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
   });
 
   // Hoja VENTAS
@@ -155,7 +219,7 @@ export const generateExcel = async (transactions, chartData) => {
     { header: "MES", key: "mes", width: 25 },
     { header: "VENTAS TOTALES", key: "ventasTotales", width: 25 },
     { header: "GANANCIA TOTAL", key: "gananciaTotalMes", width: 25 },
-    { header: "GANANCIA INDIVIDUAL TOTAL", key: "gananciaIndividualTotal", width: 25 }, // Nueva columna
+    { header: "GANANCIA INDIVIDUAL TOTAL", key: "gananciaIndividualTotal", width: 25 },
   ];
 
   ventasSheet.mergeCells("A1:E1");
@@ -219,7 +283,7 @@ export const generateExcel = async (transactions, chartData) => {
     rowIndex++;
   });
 
-  // Resumen mensual (F1:I1) - Expandido para incluir la nueva columna
+  // Resumen mensual
   ventasSheet.mergeCells("F1:I1");
   const monthlyTitleCell = ventasSheet.getCell("F1");
   monthlyTitleCell.value = "RESUMEN MENSUAL";
@@ -274,10 +338,9 @@ export const generateExcel = async (transactions, chartData) => {
     ventasSheet.getCell(`G${monthRowIndex}`).value = monthlyData[month].ventas;
     ventasSheet.getCell(`H${monthRowIndex}`).value = monthlyData[month].ganancia;
 
-    // Fórmula para sumar Ganancia Individual por mes
     const daysInMonth = sortedDays.filter((day) => day.startsWith(month));
     if (daysInMonth.length > 0) {
-      const startRow = 3; // Primera fila de datos diarios
+      const startRow = 3;
       const endRow = startRow + daysInMonth.length - 1;
       ventasSheet.getCell(`I${monthRowIndex}`).value = { formula: `SUM(C${startRow}:C${endRow})` };
     }
